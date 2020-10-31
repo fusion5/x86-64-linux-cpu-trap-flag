@@ -68,7 +68,7 @@ to find out about the state of the CPU and to change its behaviour.
 Whenever the TRAP flag is set, the CPU issues the interrupt signal as 
 previously mentioned. In x86 assembly, the TRAP flag is set in this way:
 
-```
+```x86asm
 pushf                 ; place all CPU flags on the CPU
 or [rsp], word 0x0100 ; ensure that the CPU TRAP flag is 1
 popf                  ; write back the altered flags to the CPU
@@ -81,7 +81,7 @@ The operating system manages the signal handlers of multiple processes. Hence, w
 need to interact with Linux in order to handle TRAP signals within
 the current process. This is achieved by means of the `sigaction` system call [3]:
 
-```
+```c
 #include <signal.h>
 static struct sigaction g_new_action = {0};  
 
@@ -99,7 +99,7 @@ extern void attach_trap_handler ()
 The procedure `attach_trap_handler` is called by the `main` function defined in 
 assembly language (demo\_c\_main.asm) as follows:
 
-```
+```x86asm
 main: 
     call attach_trap_handler ; Call the C function from assembly
     call start_trace         ; Set the TRAP CPU flag (bit 0x0100)
@@ -172,7 +172,7 @@ was ported to assembly language.
 
 ## References
 
-- [1] Donald E. Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
-- [2] Intel(R) 64 and IA-32 Architectures Software Developer's Manual, Volume 1: Basic Architecture, Chapter 3.4.3.3 _System Flags and IOPL Field_
-- [3] https://man7.org/linux/man-pages/man2/rt_sigaction.2.html 
-- [4] https://man7.org/linux/man-pages/man1/strace.1.html
+[1] Donald E. Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
+[2] Intel(R) 64 and IA-32 Architectures Software Developer's Manual, Volume 1: Basic Architecture, Chapter 3.4.3.3 _System Flags and IOPL Field_
+[3] https://man7.org/linux/man-pages/man2/rt_sigaction.2.html 
+[4] https://man7.org/linux/man-pages/man1/strace.1.html
