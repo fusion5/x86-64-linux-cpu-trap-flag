@@ -76,9 +76,9 @@ ret
 ```
 
 Under 64 bit Linux, the handler can be installed in C using the library 
-functions for signals to catch SIGTRAP (`signal.h`).
-The operating system manages the signal handlers of multiple processes. Hence, we
-need to interact with Linux in order to handle TRAP signals within
+functions for signals (`signal.h`) to catch SIGTRAP.
+The operating system manages signal handlers for multiple processes, therefore
+Linux system interaction is needed to handle TRAP signals within
 the current process. This is achieved by means of the `sigaction` system call [3]:
 
 ```c
@@ -103,7 +103,7 @@ assembly language (demo\_c\_main.asm) as follows:
 main: 
     call attach_trap_handler ; Call the C function from assembly
     call start_trace         ; Set the TRAP CPU flag (bit 0x0100)
-    nop                      ; Some example code that we should see executing (nop = 0x90)
+    nop                      ; Some example code to see executed (nop = 0x90)
     nop
     nop
     nop
