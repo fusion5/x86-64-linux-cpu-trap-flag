@@ -4,7 +4,7 @@ The x86 CPU can be configured to generate an interrupt request after each opcode
 executes; this is used, for example, by IDE debuggers to execute programs step by step, 
 highlighting the relevant line of source code.
 
-The repository contains two programs that demonstrate this behaviour in Linux:
+The repository consists of two programs that demonstrate this behaviour in Linux:
 one is written in assembly code (demo\_asm) and the other mostly in C code (demo\_c).
 
 For this README file some familiarity with C code, assembly language and Linux is assumed.
@@ -38,7 +38,7 @@ The .out files should contain some text such as:
 00000020: c348 89f0  .H..
 ```
 
-Each line is the output of an interrupt handler called after each
+Each line is output by interrupt handler called after each
 CPU instruction. The handler receives in a parameter the address that has 
 been executed by the program, and it outputs 4 bytes from that address on.
 
@@ -78,7 +78,7 @@ ret
 Under 64 bit linux, the handler can be installed in C using the library 
 functions for signals to catch SIGTRAP (see `man sigaction` for more information).
 The operating system manages the handlers for multiple processes. Hence, we
-need to interact with Linux in order to handle TRAP signals for
+need to interact with Linux in order to handle TRAP signals within
 the current process. This is achieved by means of the `sigaction` system call:
 
 ```
@@ -139,8 +139,8 @@ system calls that are performed and their parameters. To do so, one can run:
 
     > make demo_asm.strace
 
-This produces the file below that shows the system calls performed
-while running `demo_asm`:
+This produces the .strace file below which shows the system calls performed
+by `demo_asm`:
 
 ```
 execve("./demo_asm", ["./demo_asm"], 0x7ffffb738b50 /* 62 vars */) = 0
@@ -149,7 +149,7 @@ rt_sigaction(SIGTRAP, {sa_handler=0x401048, sa_mask=[], sa_flags=SA_RESTORER|SA_
 write(1, "\220\220\220\220", 4)         = 4
 rt_sigreturn({mask=[]})                 = 0
 
-...
+... (a sequence of SIGTRAP signals)
 
 --- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198471, si_uid=0} ---
 write(1, "\303H\211\360", 4)            = 4
@@ -159,7 +159,7 @@ exit(0)                                 = ?
 ```
 
 The `strace` output shows first the `rt_sigaction` call that installs the handler; 
-then there follow a series of SIGTRAP calls and their handler (`rt_sigreturn` 
+then there follow a sequence of SIGTRAP handler calls (note: `rt_sigreturn` 
 returns from the handler).
 
 
