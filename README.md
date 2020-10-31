@@ -1,21 +1,16 @@
 # Introduction: x86-64-linux-cpu-trap-flag
 
-A demo implementation of CPU trap functionality under Linux useful for debugging
-
-Tested under: 64 bit Linux
-
 The x86 CPU can be configured to generate an interrupt request after each opcode that it
-executes;
-this is used, for example, by IDE debuggers to execute programs step by step and to
-highlight the relevant line of source code.
+executes; this is used, for example, by IDE debuggers to execute programs step by step, 
+highlighting the relevant line of source code.
 
-The repository contains two programs that demonstrate the use of the trap flag in Linux, 
-one is written in assembly code and the other mostly in C code.
+The repository contains two programs that demonstrate this behaviour in Linux:
+one is written in assembly code (demo\_asm) and the other mostly in C code (demo\_c).
 
 For this README file some familiarity with C code, assembly language and Linux is assumed.
-This guide provides an overview of the repository and does not dwelve into the
-details of the Linux system calls and the associated data structures which are better 
-documented elsewhere.
+This guide provides an overview of the repository and does not delve into the
+details of the Linux system calls and the associated data structures, which are better 
+documented elsewhere (see the References section).
 
 
 ## Usage
@@ -27,11 +22,9 @@ documented elsewhere.
 > # Generate the binaries and run them. Ouptut their binary output in a readable fashion
 > # using xxd
 > make demo_c.out demo_asm.out
-> cat demo_c.out
-> cat demo_asm.out
 ```
 
-An output as below should be shown:
+The .out files should contain some text such as:
 
 ```
 00000000: 9090 9090  ....
@@ -45,10 +38,9 @@ An output as below should be shown:
 00000020: c348 89f0  .H..
 ```
 
-Each line is the output of an interrupt handler function triggered after each
-CPU instruction is complete, showing the next opcode bytes to be executed after 
-the instruction. The handler receives the current execution point address of 
-the program in a parameter and it outputs 4 bytes of code from that address on.
+Each line is the output of an interrupt handler called after each
+CPU instruction. The handler receives in a parameter the address that has 
+been executed by the program, and it outputs 4 bytes from that address on.
 
 
 ## Background
@@ -73,30 +65,21 @@ to find out about the state of the CPU and to change its behaviour.
 
 ## Functionality
 
-Whenever the TRAP flag is set, the CPU issues an interrupt signal, and 
-the code that is installed to handle interrupts catches that and from there 
-the programmer can run any piece of code.
-
-In X86 assembly the trap flag is set in this way:
+Whenever the TRAP flag is set, the CPU issues the interrupt signal as 
+previously mentioned. In x86 assembly, the TRAP flag is set in this way:
 
 ```
-pushf
-or [rsp], word 0x0100 ; ensure that the CPU trap flag is 1
-popf
+pushf                 ; place all CPU flags on the CPU
+or [rsp], word 0x0100 ; ensure that the CPU TRAP flag is 1
+popf                  ; write back the altered flags to the CPU
 ret
 ```
-
-This places all CPU flags on the stack (rsp), then it modifies the word on 
-the stack by setting the appropriate bit, and then it writes back the flags from
-the stack into the CPU.
-
-After this happens, the CPU generates an interrupt after each instruction.
 
 Under 64 bit linux, the handler can be installed in C using the library 
 functions for signals to catch SIGTRAP (see `man sigaction` for more information).
 The operating system manages the handlers for multiple processes. Hence, we
-need to interact with Linux in order to install and handle TRAP signals for
-the current process only. This is achieved by means of system calls:
+need to interact with Linux in order to handle TRAP signals for
+the current process. This is achieved by means of the `sigaction` system call:
 
 ```
 #include <signal.h>
@@ -113,20 +96,20 @@ extern void attach_trap_handler ()
 }
 ```
 
-The function `attach_trap_handler` is called in the main function defined in 
+The procedure `attach_trap_handler` is called by the main function defined in 
 assembly code (demo\_c\_main.asm) as follows:
 
 ```
 call attach_trap_handler ; Call the C function from assembly
-call start_trace         ; Set the trap flag (bit 0x0100)
-nop                      ; Some dummy code that we should see executing. NOP = 0x90
+call start_trace         ; Set the TRAP flag (bit 0x0100)
+nop                      ; Some example code that we should see executing. NOP = 0x90
 nop
 nop
 nop
-call stop_trace          ; Unset the trap flag (bit 0x0100)
+call stop_trace          ; Unset the TRAP flag (bit 0x0100)
 ```
 
-And indeed if by looking again at the trace shown above,...
+And indeed by looking again at the trace shown above,...
 
 ```
 00000000: 9090 9090  ....
@@ -145,24 +128,19 @@ On the next line, one of the four was consumed and there are now only
 three 0x90 NOPs to be executed followed by an 0xE8 instruction (which is the call
 to `stop_trace`), and so on. 
 
-Each line is a looking glass to the next four instructions
-to be executed. These could be converted into readable 
-assembly code by means of a disassembly function.
 
-
-## Debugging
+## Debugging tools
 
 The _strace_ tool has been particularly helpful to debug the code. 
 
-Since functionality is based on system calls, and since they are called from 
-assembly language, in which it's easy to make mistakes, 
-I had to verify the system calls that are performed and their parameters. To 
-do so, one can run:
+Since the demo is based on system calls, and since they are called from 
+assembly language, in which it's easy to make mistakes, I had to verify the 
+system calls that are performed and their parameters. To do so, one can run:
 
     > make demo_asm.strace
 
-This produces the following file that captures the system calls performed
-while executing the `demo_asm` binary:
+This produces the file below that shows the system calls performed
+while running `demo_asm`:
 
 ```
 execve("./demo_asm", ["./demo_asm"], 0x7ffffb738b50 /* 62 vars */) = 0
@@ -170,27 +148,9 @@ rt_sigaction(SIGTRAP, {sa_handler=0x401048, sa_mask=[], sa_flags=SA_RESTORER|SA_
 --- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198422, si_uid=0} ---
 write(1, "\220\220\220\220", 4)         = 4
 rt_sigreturn({mask=[]})                 = 0
---- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198423, si_uid=0} ---
-write(1, "\220\220\220\350", 4)         = 4
-rt_sigreturn({mask=[]})                 = 0
---- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198424, si_uid=0} ---
-write(1, "\220\220\350 ", 4)            = 4
-rt_sigreturn({mask=[]})                 = 0
---- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198425, si_uid=0} ---
-write(1, "\220\350 \0", 4)              = 4
-rt_sigreturn({mask=[]})                 = 0
---- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198426, si_uid=0} ---
-write(1, "\350 \0\0", 4)                = 4
-rt_sigreturn({mask=[]})                 = 0
---- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198463, si_uid=0} ---
-write(1, "\234f\201$", 4)               = 4
-rt_sigreturn({mask=[]})                 = 0
---- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198464, si_uid=0} ---
-write(1, "f\201$$", 4)                  = 4
-rt_sigreturn({mask=[]})                 = 0
---- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198470, si_uid=0} ---
-write(1, "\235\303H\211", 4)            = 4
-rt_sigreturn({mask=[]})                 = 0
+
+...
+
 --- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198471, si_uid=0} ---
 write(1, "\303H\211\360", 4)            = 4
 rt_sigreturn({mask=[]})                 = 0
@@ -199,16 +159,19 @@ exit(0)                                 = ?
 ```
 
 The `strace` output shows first the `rt_sigaction` call that installs the handler; 
-then there follow a series of SIGTRAP calls and their handler (to return from the 
-handler, `rt_sigreturn` is called).
+then there follow a series of SIGTRAP calls and their handler (`rt_sigreturn` 
+returns from the handler).
 
 
 ## Conclusion
 
-The code shows how to achieve TRAP signal handling under Linux in assembly language. 
-This is done by piggy-backing on C code which is easier to write initially.
-
+The code shows how to enable and how to handle TRAP FLAG interrupts under Linux 
+in assembly language. This was done by piggy-backing on C code, which is easier 
+to write initially, and porting it to assembly.
 
 ## References
 
-[1]: Donald E. Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
+- [1]: Donald E. Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
+- TODO: add URLS to the Linux system call, 
+- to the Intel manual the relevant chapter and page,
+- To strace
