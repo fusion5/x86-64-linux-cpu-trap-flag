@@ -5,7 +5,7 @@ executes; this is used, for example, by IDE debuggers to execute programs step b
 highlighting the relevant line of source code.
 
 The repository consists of two programs that demonstrate this behaviour in Linux:
-one is written in assembly code (demo\_asm) and the other mostly in C code (demo\_c).
+one is written in assembly language (demo\_asm) and the other mostly in C code (demo\_c).
 
 For this README file some familiarity with C code, assembly language and Linux is assumed.
 This guide provides an overview of the repository and does not delve into the
@@ -38,7 +38,7 @@ The .out files should contain some text such as:
 00000020: c348 89f0  .H..
 ```
 
-Each line is output by interrupt handler called after each CPU instruction. 
+Each line is output by the interrupt handler called after each CPU instruction. 
 The handler receives in a parameter the address of the opcode that 
 follows the one just executed, and it outputs 4 bytes from that address on.
 
@@ -75,9 +75,9 @@ popf                  ; write back the altered flags to the CPU
 ret
 ```
 
-Under 64 bit linux, the handler can be installed in C using the library 
-functions for signals to catch SIGTRAP (see `man sigaction` for more information).
-The operating system manages the handlers for multiple processes. Hence, we
+Under 64 bit Linux, the handler can be installed in C using the library 
+functions for signals to catch SIGTRAP (`signal.h`).
+The operating system manages the signal handlers of multiple processes. Hence, we
 need to interact with Linux in order to handle TRAP signals within
 the current process. This is achieved by means of the `sigaction` system call [3]:
 
@@ -97,7 +97,7 @@ extern void attach_trap_handler ()
 ```
 
 The procedure `attach_trap_handler` is called by the `main` function defined in 
-assembly code (demo\_c\_main.asm) as follows:
+assembly language (demo\_c\_main.asm) as follows:
 
 ```
 main: 
@@ -126,11 +126,11 @@ And then by comparison against trace shown above:
 
 it is clear that on the first line are the four 0x90 (nop) instructions to be 
 executed. On the next line, one of the four was consumed and there are now only
-three 0x90 NOPs to be executed followed by an 0xE8 instruction (which is the call
+three nops to be executed followed by an 0xE8 instruction (which is the call
 to `stop_trace`), and so on. 
 
 
-## Debugging tools
+## Debugging the signal handler
 
 The _strace_ [4] tool has been particularly helpful to debug the code. 
 
@@ -167,8 +167,8 @@ returns from the handler).
 ## Conclusion
 
 The code shows how to enable and how to handle TRAP FLAG interrupts under Linux 
-in assembly language. This was done by piggy-backing on C code, which is easier 
-to write initially, and porting it to assembly.
+in assembly language. C code, which is easier to write was first created; then it
+was ported to assembly language.
 
 ## References
 
