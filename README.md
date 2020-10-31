@@ -3,12 +3,16 @@ A demo implementation of CPU trap functionality under Linux useful for debugging
 
 Tested under: 64 bit Linux
 
-The x86 CPU trap flag generates an interrupt request after each opcode is executed;
+The x86 CPU can be configured to generate an interrupt request after each opcode that it
+executes;
 this is used, for example, by IDE debuggers to execute programs step by step and to
-highlight the current line of source code being executed.
+highlight the relevant line of source code.
 
 The repository contains two programs that demonstrate the use of the trap flag in Linux, 
 one is written in assembly code and the other mostly in C code.
+
+For this README file some familiarity with C code, assembly language and Linux is assumed.
+
 
 ## Usage
 
@@ -37,10 +41,10 @@ An output as below should be shown:
 00000020: c348 89f0  .H..
 ```
 
-Each line shows the next 4 bytes of opcode to be executed each CPU 
-instruction is complete. This is achieved by means of a handler function
-that gets called after each instruction; the handler receives the 
-current execution point of the program as a parameter.
+Each line is the output of an interrupt handler function triggered after each
+CPU instruction is complete, showing the next opcode bytes to be executed after 
+the instruction. The handler receives the current execution point address of 
+the program in a parameter and it outputs 4 bytes of code from that address on.
 
 ## Background
 
@@ -52,15 +56,15 @@ case, because it mustn't let any jump exit the routine: instead of executing
 the jumps, it updates the trace program location in memory with the address of 
 the jump.
 
-Since this is useful in the development of the JIT Forth-like language I'm 
-working on, I set out to implement such a routine on the X86, and I discovered the 
-difficulty introduced by having variable-length opcodes: it is impossible to know 
-how many bytes should be copied in an area for execution and by how many bytes 
-should the program position be advanced after the opcode has been executed.
+Since this would be useful in the development of the JIT Forth-like language I'm 
+working on, I set out to implement such a routine on the x86, and I discovered the 
+difficulty introduced by having variable-length opcodes: it is difficult to calculate
+how many bytes should be copied in an area for execution.
 
 Fortunately, tracing is still possible (and easier to get right!) on the x86 
 CPU thanks to the _TRAP_ CPU flag. CPU flags are certain bits that one can get/set 
 to find out about the state of the CPU and to change its behaviour.
+
 
 ## Functionality
 
@@ -84,7 +88,10 @@ the stack into the CPU.
 After this happens, the CPU generates an interrupt after each instruction.
 
 Under 64 bit linux, the handler can be installed in C using the library 
-functions for signals to catch SIGTRAP (see man sigaction for more information):
+functions for signals to catch SIGTRAP (see `man sigaction` for more information).
+The operating system manages the handlers for multiple processes. Hence, we
+need to interact with Linux in order to install and handle TRAP signals for
+the current process only. This is achieved by means of system calls.
 
 ```
 #include <signal.h>
@@ -102,19 +109,19 @@ extern void attach_trap_handler () {
 }
 ```
 
-This works in assembly code as follows:
+This is called in the main function defined in assembly code (demo\_c\_main.asm) as follows:
 
 ```
-    call attach_trap_handler ; Call the C function from assembly
-    call start_trace         ; Set the trap flag (bit 0x0100)
-    nop                      ; Some dummy code that we should see executing. NOP = 0x90
-    nop
-    nop
-    nop
-    call stop_trace          ; Unset the trap flag (bit 0x0100)
+call attach_trap_handler ; Call the C function from assembly
+call start_trace         ; Set the trap flag (bit 0x0100)
+nop                      ; Some dummy code that we should see executing. NOP = 0x90
+nop
+nop
+nop
+call stop_trace          ; Unset the trap flag (bit 0x0100)
 ```
 
-And indeed if by looking back at the trace shown above, 
+And indeed if by looking again at the trace shown above,...
 
 ```
 00000000: 9090 9090  ....
@@ -128,21 +135,23 @@ And indeed if by looking back at the trace shown above,
 00000020: c348 89f0  .H..
 ```
 
-on the first line are the four 0x90 (NOP) instructions to be executed.
-On the next line, one of the four has been executed and there are now only
-three 0x90 NOPs to be executed followed by an E8 instruction, which is the call
-to `stop_trace`, and so on. 
+...on the first line are the four 0x90 (NOP) instructions to be executed.
+On the next line, one of the four was consumed and there are now only
+three 0x90 NOPs to be executed followed by an 0xE8 instruction (which is the call
+to `stop_trace`), and so on. 
 
 Each line is a looking glass to the next four instructions
-to be executed. Using a disassembly function, these could be converted into readable 
-assembly code.
-
+to be executed. These could be converted into readable 
+assembly code by means of a disassembly function.
 
 ## Debugging
 
-Of particular use in debugging has been _strace_. Because the functionality is based 
-on system calls and they are called from assembly, it's easy to make mistakes.
-To check the system calls that are performed and their parameters, one can run:
+The _strace_ tool has been particularly helpful for debugging. 
+
+Since functionality is based on system calls, and since they are called from 
+assembly (in the assembly-only program), in which it's easy to make mistakes, 
+I had to verify the system calls that are performed and their parameters. To 
+do so, one can run:
 
     > make demo_asm.strace
 
@@ -183,10 +192,14 @@ exit(0)                                 = ?
 +++ exited with 0 +++
 ```
 
-This shows first the `rt_sigaction` call that installs the handler; then follows 
-a series of SIGTRAP calls and their handler (to return from the handler, 
-`rt_sigreturn` must be called).
+The `strace` output shows first the `rt_sigaction` call that installs the handler; 
+then there follow a series of SIGTRAP calls and their handler (to return from the 
+handler, `rt_sigreturn` is called).
 
+## Conclusion
+
+The code shows how to achieve TRAP signal handling under Linux in Assembly code. 
+This is done by piggy-backing on C code which is easier to debug.
 
 ## References
 
