@@ -172,7 +172,7 @@ was ported to assembly language.
 
 ## References
 
-[1] Donald E. Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
-[2] Intel(R) 64 and IA-32 Architectures Software Developer's Manual, Volume 1: Basic Architecture, Chapter 3.4.3.3 _System Flags and IOPL Field_
-[3] https://man7.org/linux/man-pages/man2/rt_sigaction.2.html 
-[4] https://man7.org/linux/man-pages/man1/strace.1.html
+- [1] Donald E. Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
+- [2] Intel(R) 64 and IA-32 Architectures Software Developer's Manual, Volume 1: Basic Architecture, Chapter 3.4.3.3 _System Flags and IOPL Field_
+- [3] https://man7.org/linux/man-pages/man2/rt_sigaction.2.html 
+- [4] https://man7.org/linux/man-pages/man1/strace.1.html
