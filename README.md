@@ -1,4 +1,5 @@
-# x86-64-linux-cpu-trap-flag
+# Introduction: x86-64-linux-cpu-trap-flag
+
 A demo implementation of CPU trap functionality under Linux useful for debugging
 
 Tested under: 64 bit Linux
@@ -12,6 +13,9 @@ The repository contains two programs that demonstrate the use of the trap flag i
 one is written in assembly code and the other mostly in C code.
 
 For this README file some familiarity with C code, assembly language and Linux is assumed.
+This guide provides an overview of the repository and does not dwelve into the
+details of the Linux system calls and the associated data structures which are better 
+documented elsewhere.
 
 
 ## Usage
@@ -45,6 +49,7 @@ Each line is the output of an interrupt handler function triggered after each
 CPU instruction is complete, showing the next opcode bytes to be executed after 
 the instruction. The handler receives the current execution point address of 
 the program in a parameter and it outputs 4 bytes of code from that address on.
+
 
 ## Background
 
@@ -91,7 +96,7 @@ Under 64 bit linux, the handler can be installed in C using the library
 functions for signals to catch SIGTRAP (see `man sigaction` for more information).
 The operating system manages the handlers for multiple processes. Hence, we
 need to interact with Linux in order to install and handle TRAP signals for
-the current process only. This is achieved by means of system calls.
+the current process only. This is achieved by means of system calls:
 
 ```
 #include <signal.h>
@@ -100,16 +105,16 @@ static struct sigaction g_new_action = {0};
 // Function declaration of the handler
 void my_sa_handler (int signo, siginfo_t *info, void *context);
 
-extern void attach_trap_handler () {
-
+extern void attach_trap_handler () 
+{
     g_new_action.sa_sigaction = &my_sa_handler;
     g_new_action.sa_flags = SA_SIGINFO;
-
     sigaction (SIGTRAP, &g_new_action, NULL);
 }
 ```
 
-This is called in the main function defined in assembly code (demo\_c\_main.asm) as follows:
+The function `attach_trap_handler` is called in the main function defined in 
+assembly code (demo\_c\_main.asm) as follows:
 
 ```
 call attach_trap_handler ; Call the C function from assembly
@@ -144,12 +149,13 @@ Each line is a looking glass to the next four instructions
 to be executed. These could be converted into readable 
 assembly code by means of a disassembly function.
 
+
 ## Debugging
 
-The _strace_ tool has been particularly helpful for debugging. 
+The _strace_ tool has been particularly helpful to debug the code. 
 
 Since functionality is based on system calls, and since they are called from 
-assembly (in the assembly-only program), in which it's easy to make mistakes, 
+assembly language, in which it's easy to make mistakes, 
 I had to verify the system calls that are performed and their parameters. To 
 do so, one can run:
 
@@ -196,10 +202,12 @@ The `strace` output shows first the `rt_sigaction` call that installs the handle
 then there follow a series of SIGTRAP calls and their handler (to return from the 
 handler, `rt_sigreturn` is called).
 
+
 ## Conclusion
 
-The code shows how to achieve TRAP signal handling under Linux in Assembly code. 
-This is done by piggy-backing on C code which is easier to debug.
+The code shows how to achieve TRAP signal handling under Linux in assembly language. 
+This is done by piggy-backing on C code which is easier to write initially.
+
 
 ## References
 
