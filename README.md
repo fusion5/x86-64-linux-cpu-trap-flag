@@ -38,9 +38,9 @@ The .out files should contain some text such as:
 00000020: c348 89f0  .H..
 ```
 
-Each line is output by interrupt handler called after each
-CPU instruction. The handler receives in a parameter the address that has 
-been executed by the program, and it outputs 4 bytes from that address on.
+Each line is output by interrupt handler called after each CPU instruction. 
+The handler receives in a parameter the address of the opcode that 
+follows the one just executed, and it outputs 4 bytes from that address on.
 
 
 ## Background
@@ -59,7 +59,7 @@ difficulty introduced by having variable-length opcodes: it is difficult to calc
 how many bytes should be copied in an area for execution.
 
 Fortunately, tracing is still possible (and easier to get right!) on the x86 
-CPU thanks to the _TRAP_ CPU flag. CPU flags are certain bits that one can get/set 
+CPU thanks to the _TRAP_ CPU flag [2]. CPU flags are certain bits that one can get/set 
 to find out about the state of the CPU and to change its behaviour.
 
 
@@ -79,7 +79,7 @@ Under 64 bit linux, the handler can be installed in C using the library
 functions for signals to catch SIGTRAP (see `man sigaction` for more information).
 The operating system manages the handlers for multiple processes. Hence, we
 need to interact with Linux in order to handle TRAP signals within
-the current process. This is achieved by means of the `sigaction` system call:
+the current process. This is achieved by means of the `sigaction` system call [3]:
 
 ```
 #include <signal.h>
@@ -96,20 +96,21 @@ extern void attach_trap_handler ()
 }
 ```
 
-The procedure `attach_trap_handler` is called by the main function defined in 
+The procedure `attach_trap_handler` is called by the `main` function defined in 
 assembly code (demo\_c\_main.asm) as follows:
 
 ```
-call attach_trap_handler ; Call the C function from assembly
-call start_trace         ; Set the TRAP flag (bit 0x0100)
-nop                      ; Some example code that we should see executing. NOP = 0x90
-nop
-nop
-nop
-call stop_trace          ; Unset the TRAP flag (bit 0x0100)
+main: 
+    call attach_trap_handler ; Call the C function from assembly
+    call start_trace         ; Set the TRAP CPU flag (bit 0x0100)
+    nop                      ; Some example code that we should see executing (nop = 0x90)
+    nop
+    nop
+    nop
+    call stop_trace          ; Unset the TRAP flag (bit 0x0100)
 ```
 
-And indeed by looking again at the trace shown above,...
+And then by comparison against trace shown above:
 
 ```
 00000000: 9090 9090  ....
@@ -123,15 +124,15 @@ And indeed by looking again at the trace shown above,...
 00000020: c348 89f0  .H..
 ```
 
-...on the first line are the four 0x90 (NOP) instructions to be executed.
-On the next line, one of the four was consumed and there are now only
+it is clear that on the first line are the four 0x90 (nop) instructions to be 
+executed. On the next line, one of the four was consumed and there are now only
 three 0x90 NOPs to be executed followed by an 0xE8 instruction (which is the call
 to `stop_trace`), and so on. 
 
 
 ## Debugging tools
 
-The _strace_ tool has been particularly helpful to debug the code. 
+The _strace_ [4] tool has been particularly helpful to debug the code. 
 
 Since the demo is based on system calls, and since they are called from 
 assembly language, in which it's easy to make mistakes, I had to verify the 
@@ -158,8 +159,8 @@ exit(0)                                 = ?
 +++ exited with 0 +++
 ```
 
-The `strace` output shows first the `rt_sigaction` call that installs the handler; 
-then there follow a sequence of SIGTRAP handler calls (note: `rt_sigreturn` 
+The .strace file shows first the `rt_sigaction` call that installs the handler; 
+then there follows a sequence of SIGTRAP handler calls (note: `rt_sigreturn` 
 returns from the handler).
 
 
@@ -171,7 +172,7 @@ to write initially, and porting it to assembly.
 
 ## References
 
-- [1]: Donald E. Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
-- TODO: add URLS to the Linux system call, 
-- to the Intel manual the relevant chapter and page,
-- To strace
+- [1] Donald E. Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
+- [2] Intel(R) 64 and IA-32 Architectures Software Developer's Manual, Volume 1: Basic Architecture, Chapter 3.4.3.3 _System Flags and IOPL Field_
+- [3] https://man7.org/linux/man-pages/man2/rt_sigaction.2.html 
+- [4] https://man7.org/linux/man-pages/man1/strace.1.html
