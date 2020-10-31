@@ -22,7 +22,6 @@ void my_sa_handler (int signo, siginfo_t *info, void *context);
 
 extern void attach_trap_handler () {
 
-    // printf ("SIGINFO IS %08X\n", SA_SIGINFO);
     g_new_action.sa_sigaction = &my_sa_handler;
     g_new_action.sa_flags = SA_SIGINFO;
 
