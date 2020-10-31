@@ -4,22 +4,23 @@ A demo implementation of CPU trap functionality under Linux useful for debugging
 Tested under: 64 bit Linux
 
 The x86 CPU trap flag generates an interrupt request after each opcode is executed;
-this is used, for example, by IDE debuggers to execute programs in steps and to
-show you the current line of source code being executed.
+this is used, for example, by IDE debuggers to execute programs step by step and to
+highlight the current line of source code being executed.
 
 The repository contains two programs that demonstrate the use of the trap flag in Linux, 
 one is written in assembly code and the other mostly in C code.
 
-Usage: 
-------
+# Usage
 
 ```
 > mkdir test-trap-flag
-> pushd test-trap-flag
+> cd test-trap-flag
 > git clone https://github.com/fusion5/x86-64-linux-cpu-trap-flag.git .
-> make demo\_c.out demo\_asm.out
-> cat demo\_c.out
-> cat demo\_asm.out
+> # Generate the binaries and run them. Ouptut their binary output in a readable fashion
+> # using xxd
+> make demo_c.out demo_asm.out
+> cat demo_c.out
+> cat demo_asm.out
 ```
 
 An output as below should be shown:
@@ -36,18 +37,20 @@ An output as below should be shown:
 00000020: c348 89f0  .H..
 ```
 
-Each line shows the first 4 bytes of the opcodes to be executed after a CPU 
-instruction has completed.
+Each line shows the next 4 bytes of opcode to be executed each CPU 
+instruction is complete. This is achieved by means of a handler function
+that gets called after each instruction; the handler receives the 
+current execution point of the program as a parameter. (I think we could also
+inspect the _IP_ register)
 
-Background
-----------
+# Background
 
-    Knuth has a chapter on "Trace routines" [1] that shows some code that
+    Knuth has a chapter on "Trace routines" [1] in which a routine 
 takes a program point in the assembly of a program and runs it step by step (in
 the MIX language, opcodes are of fixed width so it is easy to advance the 
-instruction pointer). The trace routine must deal with the special case of jump
-opcodes, because it mustn't let jumps to exit the routine: instead of executing
-the jumps, it just updates the program location in memory with the address of 
+instruction pointer). The trace routine must deal with jump opcodes as a special 
+case, because it mustn't let any jump exit the routine: instead of executing
+the jumps, it updates the trace program location in memory with the address of 
 the jump.
 
     Since this is useful in the development of the JIT Forth-like language I'm 
@@ -56,12 +59,11 @@ difficulty introduced by having variable-length opcodes: it is impossible to kno
 how many bytes should be copied in an area for execution and by how many bytes 
 should the program position be advanced after the opcode has been executed.
 
-    Tracing is however still possible (and easier to get right!) on the x86 CPU
-thanks to the TRAP CPU flag. CPU flags are certain bits that one can get/set to 
-find out about the state of the CPU and to change its behaviour.
+    Fortunately, tracing is still possible (and easier to get right!) on the x86 
+CPU thanks to the _TRAP_ CPU flag. CPU flags are certain bits that one can get/set 
+to find out about the state of the CPU and to change its behaviour.
 
-Functionality
--------------
+# Functionality
 
     Whenever the TRAP flag is set, the CPU issues an interrupt signal, and 
 the code that is installed to handle interrupts catches that and from there 
@@ -134,3 +136,6 @@ to be executed. Using a disassembly function we could basically convert these to
 readable assembly code.
 
 
+# References
+
+[1]: Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
