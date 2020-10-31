@@ -45,7 +45,7 @@ current execution point of the program as a parameter.
 ## Background
 
 Knuth has a chapter on "Trace routines" [1] in which a routine 
-takes a program point in the assembly of a program and runs it step by step (in
+takes a program point of executable code in memory and runs it step by step (in
 the MIX language, opcodes are of fixed width so it is easy to advance the 
 instruction pointer). The trace routine must deal with jump opcodes as a special 
 case, because it mustn't let any jump exit the routine: instead of executing
@@ -71,10 +71,10 @@ the programmer can run any piece of code.
 In X86 assembly the trap flag is set in this way:
 
 ```
-    pushf
-    or [rsp], word 0x0100 ; ensure that the CPU trap flag is 1
-    popf
-    ret
+pushf
+or [rsp], word 0x0100 ; ensure that the CPU trap flag is 1
+popf
+ret
 ```
 
 This places all CPU flags on the stack (rsp), then it modifies the word on 
@@ -91,9 +91,9 @@ functions for signals to catch SIGTRAP (see man sigaction for more information):
 static struct sigaction g_new_action = {0};  
 
 // Function declaration of the handler
-void my\_sa\_handler (int signo, siginfo\_t \*info, void \*context);
+void my_sa_handler (int signo, siginfo_t *info, void *context);
 
-extern void attach\_trap\_handler () {
+extern void attach_trap_handler () {
 
     g_new_action.sa_sigaction = &my_sa_handler;
     g_new_action.sa_flags = SA_SIGINFO;
@@ -102,16 +102,16 @@ extern void attach\_trap\_handler () {
 }
 ```
 
-This works in practice as follows:
+This works in assembly code as follows:
 
 ```
-    call attach_trap_handler ; Calling the C function from assembly
-    call start_trace ; Sets the trap flag (bit 0x0100)
-    nop ; Some dummy code that we should see executing. NOP = 0x90
+    call attach_trap_handler ; Call the C function from assembly
+    call start_trace         ; Set the trap flag (bit 0x0100)
+    nop                      ; Some dummy code that we should see executing. NOP = 0x90
     nop
     nop
     nop
-    call stop_trace ; Unsets the trap flag (bit 0x0100)
+    call stop_trace          ; Unset the trap flag (bit 0x0100)
 ```
 
 And indeed if by looking back at the trace shown above, 
@@ -127,14 +127,67 @@ And indeed if by looking back at the trace shown above,
 0000001c: 9dc3 4889  ..H.
 00000020: c348 89f0  .H..
 ```
-it can be seen on the first line the four 0x90 (NOP) instructions to be executed.
+
+on the first line are the four 0x90 (NOP) instructions to be executed.
 On the next line, one of the four has been executed and there are now only
 three 0x90 NOPs to be executed followed by an E8 instruction, which is the call
-to `stop_trace`. Basically each line is a looking glass to the next four instructions
-to be executed. Using a disassembly function these could be converted into readable 
+to `stop_trace`, and so on. 
+
+Each line is a looking glass to the next four instructions
+to be executed. Using a disassembly function, these could be converted into readable 
 assembly code.
+
+
+## Debugging
+
+Of particular use in debugging has been _strace_. Because the functionality is based 
+on system calls and they are called from assembly, it's easy to make mistakes.
+To check the system calls that are performed and their parameters, one can run:
+
+    > make demo_asm.strace
+
+This produces the following file that captures the system calls performed
+while executing the `demo_asm` binary:
+
+```
+execve("./demo_asm", ["./demo_asm"], 0x7ffffb738b50 /* 62 vars */) = 0
+rt_sigaction(SIGTRAP, {sa_handler=0x401048, sa_mask=[], sa_flags=SA_RESTORER|SA_SIGINFO, sa_restorer=0x4010a8}, NULL, 8) = 0
+--- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198422, si_uid=0} ---
+write(1, "\220\220\220\220", 4)         = 4
+rt_sigreturn({mask=[]})                 = 0
+--- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198423, si_uid=0} ---
+write(1, "\220\220\220\350", 4)         = 4
+rt_sigreturn({mask=[]})                 = 0
+--- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198424, si_uid=0} ---
+write(1, "\220\220\350 ", 4)            = 4
+rt_sigreturn({mask=[]})                 = 0
+--- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198425, si_uid=0} ---
+write(1, "\220\350 \0", 4)              = 4
+rt_sigreturn({mask=[]})                 = 0
+--- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198426, si_uid=0} ---
+write(1, "\350 \0\0", 4)                = 4
+rt_sigreturn({mask=[]})                 = 0
+--- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198463, si_uid=0} ---
+write(1, "\234f\201$", 4)               = 4
+rt_sigreturn({mask=[]})                 = 0
+--- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198464, si_uid=0} ---
+write(1, "f\201$$", 4)                  = 4
+rt_sigreturn({mask=[]})                 = 0
+--- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198470, si_uid=0} ---
+write(1, "\235\303H\211", 4)            = 4
+rt_sigreturn({mask=[]})                 = 0
+--- SIGTRAP {si_signo=SIGTRAP, si_code=TRAP_TRACE, si_pid=4198471, si_uid=0} ---
+write(1, "\303H\211\360", 4)            = 4
+rt_sigreturn({mask=[]})                 = 0
+exit(0)                                 = ?
++++ exited with 0 +++
+```
+
+This shows first the `rt_sigaction` call that installs the handler; then follows 
+a series of SIGTRAP calls and their handler (to return from the handler, 
+`rt_sigreturn` must be called).
 
 
 ## References
 
-[1]: Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
+[1]: Donald E. Knuth, _The Art Of Computer Programming, Volume 1_, 1.4.3.2 Trace Routines
